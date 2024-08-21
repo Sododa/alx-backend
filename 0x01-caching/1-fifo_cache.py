@@ -1,31 +1,51 @@
-#!/usr/bin/env python3
-"""task 1.
+#!/usr/bin/python3
+"""FIFO Cache Replacement Implementation Class
 """
-from collections import OrderedDict
+from threading import RLock
 
-from base_caching import BaseCaching
+BaseCaching = __import__('base_caching').BaseCaching
 
 
 class FIFOCache(BaseCaching):
-    """A caching system that_
+    """
+    An implementation of FIFO(First In Fisrt Out) Cache
+
+    Attributes:
+        __keys (list): Stores cache keys in order of entry using `.append`
+        __rlock (RLock): Lock accessed resources to prevent race condition
     """
     def __init__(self):
-        """Initializes init method.
+        """ Instantiation method, sets instance attributes
         """
         super().__init__()
-        self.cache_data = OrderedDict()
+        self.__keys = []
+        self.__rlock = RLock()
 
     def put(self, key, item):
-        """Assigns the item value to the key in the dictionary.
+        """ Add an item in the cache
         """
-        if key is None or item is None:
-            return
-        self.cache_data[key] = item
-        if len(self.cache_data) > BaseCaching.MAX_ITEMS:
-            first_key, _ = self.cache_data.popitem(False)
-            print("DISCARD:", first_key)
+        if key is not None and item is not None:
+            keyOut = self._balance(key)
+            with self.__rlock:
+                self.cache_data.update({key: item})
+            if keyOut is not None:
+                print('DISCARD: {}'.format(keyOut))
 
     def get(self, key):
-        """Retrieves.
+        """ Get an item by key
         """
-        return self.cache_data.get(key, None)
+        with self.__rlock:
+            return self.cache_data.get(key, None)
+
+    def _balance(self, keyIn):
+        """ Removes the oldest item from the cache at MAX size
+        """
+        keyOut = None
+        with self.__rlock:
+            if keyIn not in self.__keys:
+                keysLength = len(self.__keys)
+                if len(self.cache_data) == BaseCaching.MAX_ITEMS:
+                    keyOut = self.__keys.pop(0)
+                    self.cache_data.pop(keyOut)
+                self.__keys.insert(keysLength, keyIn)
+        return keyOut
